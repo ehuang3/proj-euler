@@ -151,3 +151,19 @@ bool prime(long n)
    }
    return true;
 }
+
+long next_prime(long p)
+{
+	if(p < 2)
+		return 2;
+	if(p==2)
+		return 3;
+	
+	p += 2;
+	while(!prime(p))
+	{
+		p += 2;
+	}
+	
+	return p;
+}

@@ -15,6 +15,8 @@ long exp_of(long d, long a);
 bool SPRP(long a, long n);
 /* Primality of n */
 bool prime(long n);
+/* Next prime */
+long next_prime(long n);
 
 u64 __overflow_mult_mod(u64 a, u64 b, u64 m);
 
