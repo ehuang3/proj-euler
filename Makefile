@@ -78,16 +78,16 @@ else
 ################################################################################
 
 all : CFLAGS += $(CDEBUG) $(CRELEASE)
-all : $(OFILES) lib $(BIN)
+all : $(OFILES) lib.a $(BIN)
 	@echo "[FINISH] Generated $(PROGNAME)"
 
-.PHONY : all clean lib
+.PHONY : all clean lib.a
 
-$(BIN) : % : %.o lib
+$(BIN) : % : %.o lib.a
 	@echo "[BINARY] Linking $@ "
 	@$(CC) $< lib.a -o $@
 
-lib : lib.a($(LIB_O))
+lib.a : lib.a($(LIB_O))
 
 .SECONDEXPANSION:
 lib.a($(LIB_O)) : $$%
