@@ -6,7 +6,7 @@
 /****************************************************************************
   Preprocessor defines                       
 ****************************************************************************/
-#define MIN_LEN (4);
+#define MIN_LEN (1);
 #define MIN_CHAR_LEN (20);
 #define SIG_BIT (1 << SIG_BIT_IND)
 #define SIG_BIT_IND (sizeof(long)*8-1)
@@ -34,11 +34,39 @@ void BIrealloc(BI* b, size_t nsize)
 	b->bytes = realloc(b->bytes, sizeof(long)*nsize);
 	b->b_len = nsize;
 	
+	// Maybe no need to zero....
 	size_t itr = nsize-psize;
 	while(itr-- > 0)
 	{
 		b->bytes[psize + itr] = 0;
 	}
+}
+
+#define LOW ((u64)-1>>32)
+void mult_64x64(u64 a, u64 b, u64* buf)
+{
+	*buf++ = a*b;
+	*buf  = (a&LOW)*(b&LOW)>>32;
+	*buf += (a>>32)*(b&LOW);
+	*buf += (a&LOW)*(b>>32);
+	*buf  = *buf>>32;
+	*buf += (a>>32)*(b>>32);
+}
+
+void add_2x64(u64 a, u64 b, u64* buf)
+{
+	*buf++ = a+b;
+	*buf 	= (a>>1)+(b>>1);
+	*buf += (a&0x1)+(b&0x1)>>1;
+	*buf  = *buf>>63;
+}
+
+void add_3x64(u64 a, u64 b, u64 c, u64* buf)
+{
+	*buf++ = a+b+c;
+	*buf 	= (a>>2)+(b>>2)+(c>>2);
+	*buf += (a&0x3)+(b&0x3)+(c&0x3)>>2;
+	*buf  = *buf>>62;
 }
 
 /****************************************************************************
@@ -47,7 +75,7 @@ void BIrealloc(BI* b, size_t nsize)
 BI* BIcreate(long value)
 {
 	BI* b = malloc(sizeof(BI));
-	b->bytes = malloc( sizeof(long) * 4 );
+	b->bytes = malloc( sizeof(long) * 1 );
 	b->b_len = MIN_LEN;
 	b->s_len = MIN_CHAR_LEN;
 	b->string = malloc(sizeof(char) * 20 );
@@ -57,9 +85,23 @@ BI* BIcreate(long value)
 	{
 		b->bytes[itr] = 0;
 	}
-	b->bytes[0] = value;
+	b->sign = value >= 0 ? 1 : -1;
+	b->bytes[0] = value*b->sign;
 	
 	return b;
+}
+
+void BIcopy(BI* dst, BI* src)
+{
+	if(dst->b_len != src->b_len)
+	{
+		// realloc, no zeroing
+		dst->b_len = src->b_len;
+		realloc(dst->bytes, sizeof(long)*dst->b_len);
+	}
+	
+	dst->sign = src->sign;
+	memcpy(dst->bytes, src->bytes, sizeof(long)*dst->b_len);
 }
 
 void BIfree(BI* b)
@@ -88,6 +130,46 @@ void BIprint(BI* b)
 	}
 	if(itr%4 != 0)
 		printf("\n");
+}
+
+int BIcompare(const void* B1, const void* B2)
+{
+	BI* b1 = (BI*)B1;
+	BI* b2 = (BI*)B2;
+	
+	if(b1->sign > b2->sign)
+		return 1;
+	if(b1->sign < b2->sign)
+		return -1;
+		
+	return BIabs_compare(B1,B2)*b1->sign;
+}
+
+int BIabs_compare(const void* B1, const void* B2)
+{
+	BI* b1 = (BI*)B1;
+	BI* b2 = (BI*)B2;
+	
+	// Assume compactness of representation
+	if(b1->b_len > b2->b_len)
+		return 1;
+	if(b1->b_len < b2->b_len)
+		return -1;
+	
+	// Same length, same sign
+	u64* byte1 = b1->bytes;
+	u64* byte2 = b2->bytes;
+	
+	u64 i = b1->b_len;
+	while(i--)
+	{
+		if(byte1[i] < byte2[i])
+			return -1;
+		else if(byte1[i] > byte2[i])
+			return 1;
+	}
+	
+	return 0;
 }
 
 void BIadd(BI* dst, BI* op1, BI* op2)
@@ -162,83 +244,108 @@ void BIadd(BI* dst, BI* op1, BI* op2)
 	free(imval);
 }
 
+void BIsub(BI* dst, BI* op1, BI* op2)
+{
+	// Swap 
+	int g = BI_compare(op1,op2);
+	if(g < 0)
+	{
+		BI* tmp = op1;
+		op1 = op2;
+		op2 = tmp;
+	}
+	
+	// Precondition: |op1| is greater than |op2|? Nope.
+}
+
 void BImult(BI* dst, BI* op1, BI* op2)
 {
+	// byteA is the shorter byte
+	// byteB is the longer byte
 	size_t lenA = op1->b_len;
 	size_t lenB = op2->b_len;
-	size_t max_len = lenA > lenB ? lenA : lenB;
+	u64* byteA = op1->bytes;
+	u64* byteB = op2->bytes;
+	if(lenA > lenB)
+	{
+		lenA = op2->b_len;
+		lenB = op1->b_len;
+		byteA = op2->bytes;
+		byteB = op1->bytes;
+	}
 	
 	// Temporary storage
-	u64* tmp = malloc(sizeof(long) * max_len * max_len);
-	// Zeroing required
-	size_t t = max_len*max_len;
-	while(t--)
-	{
-		tmp[t] = 0;
-	}
+	// +1 to protect against the write of tmp[i+2] at i = n+m-2
+	u64* tmp = malloc(sizeof(long)*(lenA+lenB)+1); 
 	
-	u64* byteA = op1->bytes, *byteB;
-	long ia = 0, ib = 0;
-	
-	long i, max = max_len*max_len;
-	for(i=0; i < max; i++)
+	/* Let byteA be n u64's, byteB be m u64's.
+	 * number of bytes of result is n+m, in indexes that's {0,...,n+m-1}
+	 * byteA indexes {0,...,n-1}
+	 * byteB indexes {0,...,m-1}
+	 * each multiplication of u64 is 128 bits 
+	 * so n+m-1 u64 is overflow of [n-1]*[m-1] multiplication, solely
+	 */
+	long max_i = lenA+lenB-2; // Iterate up to n+m-2
+	tmp[0] = 0; tmp[1] = 0; // Prepare for loop
+	/* To account for overflows properly, we calculate lbytes in sequence */
+	for(long i=0; i <= max_i; i++)
 	{
 		
-	
-	
-	
-	
-	}
-	
-	
-	
-	
-	
-	
-	
-	while( ia < lenA )
-	{
-		byteB = op2->bytes;
-		ib = lenB;
-		while( ib < lenB )
+		tmp[i+2] = 0; // Prepare for inner loop
+		/* These are lbytes of A and B that multiply into the current lbyte i */
+		for(long j=0; j < lenA && i-j >= 0; j++)
 		{
-			// Buffer [64.127] of the op a[0.63]*b[0.63] = [0.127] ie [0.63][64.127]
-			u64 buf = (*byteA>>31)*(*byteB)>>31;
-			buf += (*byteA)*(*byteB>>31)>>31;
-			buf += (*byteA>>31)*(*byteB>>31);
+			u64 ia = j;
+			u64 ib = i-j;
 			
-			// Check overflow of tmp[] += [0.63]
-			u64* byte = &tmp[ia*ib];
-			u64 low = *byteA * *byteB;
+			u64 mbuf[2];
+			// Buffer 128 bit result of multiplication
+			mult_64x64(byteA[ia],byteB[ib],&mbuf[0]);
 			
-			u64 oflo = (low>>1) + (*byte>>1);
-			oflo += (low &1) + (*byte &1);
+			u64 abuf[3];
+			// Buffer result of addition of byteA*byteB to tmp
+			add_2x64(mbuf[0],tmp[i],&abuf[0]);
+			tmp[i] = abuf[0];
 			
-			u64 ofhi = 0;
-			
-			tmp[ia*ib +1] += oflo>>63;
-			
-			tmp[ia*ib] += *byteA * *byteB;
-			
-			// Check overflow of tmp[] += [64.127]
-			
-			
-			byteB++;
-			ib++;
+			add_3x64(mbuf[1],abuf[1],tmp[i+1],&abuf[1]);
+			tmp[i+1] = abuf[1];
+			// Assume that overflow of i+2 cell will not happen
+			// It would take ~ 2^64 additions/u64's
+			tmp[i+2] += abuf[2];
 		}
-		byteA++;
-		ia++;
 	}
+	
+	// Copy
+	
+	// Assume that byteA and byteB are compact (every lbyte is nonzero)
+	if( tmp[lenA+lenB-1] )
+	{
+		if(dst->b_len != lenA+lenB)
+			BIrealloc(dst, lenA+lenB);
+			
+		memcpy(dst->bytes, tmp, sizeof(long)*(lenA+lenB));
+	}
+	else
+	{
+		// Last lbyte was empty
+		if(dst->b_len != lenA+lenB-1)
+			BIrealloc(dst, lenA+lenB-1);
+			
+		memcpy(dst->bytes, tmp, sizeof(long)*(lenA+lenB-1));
+	}
+	
+	// Free
+	free(tmp);
 }
 
-void BIdiv(BI* dst, BI* ope, BI* opr)
+void BIdiv(BI* dst, BI* opd, BI* opr)
 {
-
+	//TODO: Implement!!! ugh.
 }
 
-void BImod(BI* dst, BI* ope, BI* opr)
+void BImod(BI* dst, BI* opd, BI* opr)
 {
-
+	//TODO: Implement!
 }
 
 void BIshiftL(BI* dst, BI* src, int n)

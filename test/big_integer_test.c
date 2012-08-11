@@ -24,7 +24,6 @@ int main(void)
 	printf("\n");
 	
 	printf("Test mem overflow\n");
-	b->bytes[3] = -1;
 	BIprint(b);
 	printf("after adding!!!!\n");
 	BIadd(b,b,b);
@@ -33,5 +32,31 @@ int main(void)
 	
 	printf("Free BI b, prep mult\n");
 	BIfree(b);
-	b = BIcreate(-1);
+	b = BIcreate(0xFFFFFFFF);
+	BIprint(b);
+	printf("\n");
+	
+	BImult(b,b,b);
+	printf("Just did mult: \n");
+	BIprint(b);
+	printf("\n");
+	
+	printf("what it looks like with u64\n");
+	printf("%#x^2 = %#lx\n\n",0xFFFFFFFF, (u64)0xFFFFFFFF * (u64)0xFFFFFFFF);
+	
+	printf("Testing mult: \n");
+	BI* a = BIcreate(19283124123123); //19283124123123
+	BI* x = BIcreate(12345123124312412); //12345123124312412
+	BI* dst = BIcreate(0);
+	BImult(dst,a,x);
+	BIprint(dst);
+	
+	printf("\n");
+	
+	printf("Do it more:\n");
+	BImult(dst,dst,x);
+	BIprint(dst);
+	BImult(dst,dst,x);
+	BIprint(dst);
+	
 }
