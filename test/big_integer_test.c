@@ -3,60 +3,69 @@
 
 int main(void)
 {
-	printf("BigInteger Test:\n\n");
+	printf("BigInteger Testing:\n\n");
 	
-	printf("Creating new big int\n");
-	BI* b = BIcreate(-1);
-	BIprint(b);
-	printf("\n");
+	printf("#1- Creating a BigInteger:\n");
+	BI* b = BI_Create(1087491031,1);
+	BI_PrintDeci(b);
 	
-	printf("Adding to self, checking for overflow correctness\n");
-	BIadd(b,b,b);
-	BIprint(b);
-	printf("\n");
+	printf("#2- Trying different prints:\n");
+	BI_PrintHex(b);
+	BI_PrintBits(b);
+	BI_PrintDeci(b);
 	
-	printf("Add to self 63 more times\n");
-	for(int i=0; i<63; i++)
-	{
-		BIadd(b,b,b);
-		BIprint(b);
+	printf("#3- Mulitply it with a word:\n");
+	BI_MultOneWord(b,b,3215728912);
+	BI_PrintDeci(b);
+	
+	printf("#4- Multiply it with 0:\n");
+	BI_MultOneWord(b,b,0);
+	BI_PrintDeci(b);
+	
+	printf("#5- Adding it with a word:\n");
+	BI_AddOneWord(b,b,1239112);
+	BI_PrintDeci(b);
+
+	printf("#6- Adding it with 0:\n");
+	BI_AddOneWord(b,b,0);
+	BI_PrintDeci(b);
+	BI_PrintHex(b);
+	
+	printf("#7- Adding it with 4,294,967,295:\n");
+	BI_AddOneWord(b,b,4294967295);
+	BI_PrintDeci(b);
+	BI_PrintHex(b);
+	
+	printf("#8- Set to 0 and add it 1024 times: \n");
+	BI_MultOneWord(b,b,0);
+	for(int i=0; i<1024; i++)
+		BI_AddOneWord(b,b,4294967295);
+	BI_PrintDeci(b);
+	BI_PrintHex(b);
+	
+	printf("#9- Double it by adding to itself: \n");
+	BI_Add(b,b,b);
+	BI_PrintDeci(b);
+	BI_PrintHex(b);
+	
+	printf("#10- Double it 85 more times and add words: \n");
+	for(int i=0; i<84; i++){
+		BI_Add(b,b,b);
+		BI_AddOneWord(b,b,-1);
 	}
-	printf("\n");
+	BI_PrintDeci(b);
+	BI_PrintHex(b);
 	
-	printf("Test mem overflow\n");
-	BIprint(b);
-	printf("after adding!!!!\n");
-	BIadd(b,b,b);
-	BIprint(b);
-	printf("\n");
+	printf("#11- Add lots of words:\n");
+	for(int i=0; i<50121; i++)
+	{
+		BI_AddOneWord(b,b,i*12342);
+	}
+	BI_AddOneWord(b,b,1);
+	BI_PrintDeci(b);
+	BI_PrintHex(b);
 	
-	printf("Free BI b, prep mult\n");
-	BIfree(b);
-	b = BIcreate(0xFFFFFFFF);
-	BIprint(b);
-	printf("\n");
-	
-	BImult(b,b,b);
-	printf("Just did mult: \n");
-	BIprint(b);
-	printf("\n");
-	
-	printf("what it looks like with u64\n");
-	printf("%#x^2 = %#lx\n\n",0xFFFFFFFF, (u64)0xFFFFFFFF * (u64)0xFFFFFFFF);
-	
-	printf("Testing mult: \n");
-	BI* a = BIcreate(19283124123123); //19283124123123
-	BI* x = BIcreate(12345123124312412); //12345123124312412
-	BI* dst = BIcreate(0);
-	BImult(dst,a,x);
-	BIprint(dst);
-	
-	printf("\n");
-	
-	printf("Do it more:\n");
-	BImult(dst,dst,x);
-	BIprint(dst);
-	BImult(dst,dst,x);
-	BIprint(dst);
-	
+	printf("#END- Free BigInteger(s):\n");
+	BI_Free(b);
+	printf("Free'd\n\n");
 }
