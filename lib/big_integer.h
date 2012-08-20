@@ -1,11 +1,8 @@
 #ifndef BIG_INTEGER_H
 #define BIG_INTEGER_H
 
-
 #include "types.h"
 #include <string.h>
-
-
 
 /*******************************************************************************
   Typedef
@@ -26,6 +23,7 @@ typedef BigInteger BI;
 *******************************************************************************/
 BI* BI_Create(u32 value, u32 sign);
 void BI_Copy(BI* dst, BI* src);
+BI* BI_CopyCreate(BI* src);
 
 void BI_Free(BI* b);
 
@@ -42,6 +40,8 @@ int BI_CompareMag(const void* A, const void* B);
 int BI_isZero(BI* b);
 /* Sets input BigInteger to zero */
 void BI_Zero(BI* dst);
+
+void BI_Neg(BI* b);
 
 /* Wrapper functions implement signed multiplication */
 void BI_MultOneWord(BI* dst, BI* src, u32 val);
@@ -66,9 +66,14 @@ void BI_Sub(BI* dst, BI* src, BI* sbr);
 void BI_USubOneWord(BI* dst, BI* src, u32 val);
 void BI_USub(BI* dst, BI* src, BI* sbr);
 
+/* Wrapper functions implement signed division */
 u32 BI_DivOneWord(BI* dst, BI* src, u32 val);
 void BI_Div(BI* dst, BI* rm, BI* src, BI* dvr);
+/* Unsigned division */
+u32 BI_UDivOneWord(BI* dst, BI* src, u32 val);
+void BI_UDiv(BI* dst, BI* rm, BI* src, BI* dvr);
 
+/* Modulus */
 u32 BI_ModOneWord(BI* src, u32 val);
 void BI_Mod(BI* dst, BI* src, BI* dvr);
 
