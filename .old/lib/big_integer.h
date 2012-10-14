@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include <string.h>
+#include <stdlib.h>
 
 /*******************************************************************************
   Typedef
@@ -24,6 +25,7 @@ typedef BigInteger BI;
 BI* BI_Create(u32 value, u32 sign);
 void BI_Copy(BI* dst, BI* src);
 BI* BI_CopyCreate(BI* src);
+BI* BI_StringCreate(char* string);
 
 void BI_Free(BI* b);
 
@@ -43,10 +45,12 @@ void BI_Zero(BI* dst);
 
 void BI_Neg(BI* b);
 
+void BI_Set(BI* b, u32 value, int sign);
+
 /* Wrapper functions implement signed multiplication */
 void BI_MultOneWord(BI* dst, BI* src, u32 val);
 void BI_Mult(BI* dst, BI* src, BI* mpr);
-/* Unsigned add */
+/* Unsigned mult */
 void BI_UMultOneWord(BI* dst, BI* src, u32 val);
 void BI_UMult(BI* dst, BI* src, BI* mpr);
 
@@ -76,5 +80,31 @@ void BI_UDiv(BI* dst, BI* rm, BI* src, BI* dvr);
 /* Modulus */
 u32 BI_ModOneWord(BI* src, u32 val);
 void BI_Mod(BI* dst, BI* src, BI* dvr);
+
+/* Debugging Support */
+#ifdef BI_DEBUG
+    /*
+       Does the following if compiled in debug mode
+       When compiled in release mode does absolutely nothing.
+    */
+    #define IF_DEBUG(call) (call)
+    /* Prints text (in red) if in debug mode */
+    #define DEBUG_PRINT(string) fprintf(stderr, "\033[31m%s:%d %s\n\033[0m", __FILE__, __LINE__, (string))
+    /* Asserts if the expression given is true (!0) */
+    /* If this fails it prints a message and terminates */
+    #define DEBUG_ASSERT(expr)   \
+    do                           \
+    {                            \
+        if (!(expr))             \
+        {                        \
+            fprintf(stderr, "ASSERTION FAILED %s != TRUE (%d) IN %s ON line %d\n", #expr, (expr), __FILE__, __LINE__); \
+            exit(0);             \
+        }                        \
+    } while(0)
+#else
+    #define IF_DEBUG(call)
+    #define DEBUG_PRINT(string)
+    #define DEBUG_ASSERT(expr)
+#endif
 
 #endif

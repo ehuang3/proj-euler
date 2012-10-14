@@ -1,7 +1,8 @@
 ################################################################################
 # Project Euler
 # Name:  Eric Huang
-# Notes: c++ version of makefile 
+# Notes: 
+# 
 ################################################################################
 
 # BUILD is the directory where object files & intermediate files will be placed
@@ -26,59 +27,37 @@ ifneq ($(BUILD),$(notdir $(CURDIR)))
 ################################################################################
 # Automatically build a list of files to compile
 ################################################################################
-EXT	    	:= cpp
+
 # SRC is list of .c files in SOURCES
 # LIBFILES is list of .c files in LIBRARY
-SRC         := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.$(EXT))))
-LIB         := $(foreach dir,$(LIBRARY),$(notdir $(wildcard $(dir)/*.$(EXT))))
+SRC         := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
+LIB         := $(foreach dir,$(LIBRARY),$(notdir $(wildcard $(dir)/*.c)))
 
-SRC_O       := $(SRC:.$(EXT)=.o)
+SRC_O       := $(SRC:.c=.o)
 
-LIB_O       := $(LIB:.$(EXT)=.o)
+LIB_O       := $(LIB:.c=.o)
 
-OFILES      := $(SRC:.$(EXT)=.o) $(LIB:.$(EXT)=.o)
+OFILES      := $(SRC:.c=.o) $(LIB:.c=.o)
 
-BIN         := $(SRC:.$(EXT)=)
+BIN         := $(SRC:.c=)
 
-VPATH       := $(foreach dir,$(SOURCES),../$(dir)) \
-	       $(foreach dir,$(LIBRARY),../$(dir))
+VPATH       :=	$(foreach dir,$(SOURCES),../$(dir)) \
+					$(foreach dir,$(LIBRARY),../$(dir))
 
 # Some headers are in source and library directories
 INCLUDES    += $(SOURCES) $(LIBRARY)
 
 ################################################################################
 # These are various settings for the GCC compiler
-#################################################################################
-CFLAGS   =
-CWARNING =  -Wall -Weffc++ -pedantic  \
-				-pedantic-errors -Wextra  -Wall -Waggregate-return -Wcast-align \
-				-Wcast-qual  -Wchar-subscripts  -Wcomment -Wconversion \
-				-Wdisabled-optimization \
-				-Werror -Wfloat-equal  -Wformat  -Wformat=2 \
-				-Wformat-nonliteral -Wformat-security  \
-				-Wformat-y2k \
-				-Wimport  -Winit-self  -Winline \
-				-Winvalid-pch \
-				-Wunsafe-loop-optimizations  -Wlong-long -Wmissing-braces \
-				-Wmissing-field-initializers -Wmissing-format-attribute   \
-				-Wmissing-noreturn \
-				-Wpacked  -Wpadded -Wparentheses  -Wpointer-arith \
-				-Wredundant-decls -Wreturn-type \
-				-Wsequence-point  -Wshadow -Wsign-compare  -Wstack-protector \
-				-Wstrict-aliasing -Wstrict-aliasing=2 -Wswitch  -Wswitch-default \
-				-Wswitch-enum -Wtrigraphs  -Wuninitialized \
-				-Wunknown-pragmas  -Wunreachable-code -Wunused \
-				-Wunused-function  -Wunused-label  -Wunused-parameter \
-				-Wunused-value  -Wunused-variable  -Wvariadic-macros \
-				-Wvolatile-register-var  -Wwrite-strings
-				#-Wimplicit
-				#-Wmissing-include-dirs
-CFLAGS  +=  $(CWARNING)
-CFLAGS  +=  -MMD -MP
-CFLAGS  +=  $(addprefix -I $(CURDIR)/,$(INCLUDES))
-CDEBUG   =  -g 
-CRELEASE =  -O #-O2 
-CC       =  g++ 
+################################################################################
+
+CFLAGS   = -std=c99
+# CFLAGS   += -Wall -Werror -pedantic 
+CFLAGS   += -MMD -MP
+CFLAGS   += $(addprefix -I $(CURDIR)/,$(INCLUDES))
+CDEBUG   = -g 
+CRELEASE = #-O2 
+CC       = gcc 
 
 ################################################################################
 # Export vars and change to BUILD directory
@@ -115,11 +94,11 @@ lib.a($(LIB_O)) : $$%
 	@echo "[LIBRARY] Archiving $%"
 	@ar cr lib.a $%
 
-%.o : %.$(EXT) 
+%.o : %.c 
 	@echo "[COMPILE] Compiling $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
-
--include $(CFILES:%.$(EXT)=%.d)
+	
+-include $(CFILES:%.c=%.d)
 
 ################################################################################
 endif
@@ -127,4 +106,4 @@ endif
 clean :
 	@echo "[CLEAN] Removing all compiled files"
 	@cd $(BUILD); \
-		 rm -f *.o *.a *.d
+	 rm -f *.o *.a *.d

@@ -3,26 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-/****************************************************************************
-  Preprocessor defines                       
-****************************************************************************/
-#define MIN_LEN (1);
-#define MIN_CHAR_LEN (20);
-#define SIG_BIT (1 << SIG_BIT_IND)
-#define SIG_BIT_IND (sizeof(long)*8-1)
-
-#define LOW ((u64)-1>>32)
-
-/*******************************************************************************
-  Internal prototypes
-*******************************************************************************/
-
 
 /****************************************************************************
   Creating and Destroying
 ****************************************************************************/
 BI* BI_Create(u32 value, u32 sign)
 {
+	DEBUG_ASSERT(sign >= -1 && sign <= 1);
+
 	BI* b   = malloc(sizeof(BI));
 	b->byte = malloc(sizeof(int));
 	b->len  = 1;
@@ -49,6 +37,54 @@ BI* BI_CopyCreate(BI* src)
 	return dst;
 }
 
+BI* BI_StringCreate(char* string)
+{
+	BI* dst = BI_Create(0,0);
+	BI* dig = BI_Create(1,1);
+	BI* pow = BI_Create(1,1);
+
+	int neg = 0;
+	if(*string == '-')
+	{
+		neg = 1;
+		string++;
+	}
+
+	char* itr_str = string;
+	size_t len = 0;
+	while(*itr_str != 0) // Go to end of string;
+	{
+		itr_str++;
+		len ++;
+	}
+	itr_str--;
+
+	if(len == 1 && *itr_str == '0')
+	{
+		//it's zero
+		dst->signum = 0;
+	}
+	else
+	{
+		while(len--)
+		{
+			BI_MultOneWord(dig,pow, *itr_str-- - '1'+1);
+			BI_UAdd(dst,dst,dig);
+			BI_MultOneWord(pow,pow,10);
+		}
+
+		if(neg)
+			dst->signum = -1;
+		else
+			dst->signum = 1;
+	}
+
+	BI_Free(dig);
+	BI_Free(pow);
+
+	return dst;
+}
+
 void BI_Free(BI* b)
 {
 	free(b->byte);
@@ -60,7 +96,7 @@ void BI_Free(BI* b)
 *******************************************************************************/
 char* BI_ToString(BI* b)
 {
-	char* rev_str = malloc((b->len*10+1)*sizeof(char));
+	char* rev_str = malloc((b->len*10+2)*sizeof(char));
 	char* itr_rev = rev_str;
 	BI* t = BI_Create(0,0); BI_Copy(t,b);
 	if(BI_isZero(t))
@@ -76,8 +112,10 @@ char* BI_ToString(BI* b)
 		sprintf(itr_rev++,"%d",digit);
 	}
 	// Reverse
-	char* string = malloc( (itr_rev-rev_str)*sizeof(char)+1 );
+	char* string = malloc( (itr_rev-rev_str)*sizeof(char)+2 );
 	char* itr_str = string;
+	if(b->signum == -1)
+		*itr_str++ = '-';
 	u32 i = itr_rev-rev_str;
 	while(i--)
 	{
@@ -179,7 +217,7 @@ int BI_CompareMag(const void* A, const void* B)
 }
 
 /*******************************************************************************
-  Zero and Sign
+  Zero, Sign, Util
 ******************************************************************************/
 int BI_isZero(BI* b)
 {
@@ -195,8 +233,15 @@ void BI_Zero(BI* b)
 
 void BI_Neg(BI* b)
 {
-	if(!BI_isZero(b))
-		b->signum *= -1;
+	b->signum *= -1;
+}
+
+void BI_Set(BI* b, u32 value, int sign)
+{
+	b->offs = 0;
+	b->len = 1;
+	b->byte[0] = value;
+	b->signum = sign;
 }
 
 /*******************************************************************************
@@ -214,8 +259,7 @@ void BI_AddOneWord(BI* dst, BI* src, u32 val)
 	else if(op_sign == 0)
 	{
 		// src is 0
-		BI_Free(dst);
-		dst = BI_Create(val,1);
+		BI_Set(dst, val, 1);
 	}
 	else if(op_sign == -1)
 	{
@@ -245,6 +289,7 @@ void BI_AddOneWord(BI* dst, BI* src, u32 val)
 		{
 			// BI is not word length
 			BI_USubOneWord(dst,src,val);
+			dst->signum = -1;
 		}
 	}
 }
@@ -260,11 +305,11 @@ void BI_Add(BI* dst, BI* src, BI* op)
 	}
 	else if(op_sign == 0)
 	{
-		// At least one BI is zero FIXME
+		// At least one BI is zero
 		if(src->signum == 0)
 		{
 			BI_Copy(dst,op);
-			dst->signum = op->signum*-1;
+			dst->signum = op->signum;
 		}
 		else
 		{
@@ -274,7 +319,7 @@ void BI_Add(BI* dst, BI* src, BI* op)
 	}
 	else if(op_sign == -1)
 	{
-		// Magnitudes are to be subtracted FIXME
+		// Magnitudes are to be subtracted
 		int cmp = BI_CompareMag(src,op);
 		if(cmp == 1)
 		{
@@ -384,12 +429,12 @@ void BI_SubOneWord(BI* dst, BI* src, u32 val)
 			}
 			else if(byte > val)
 			{
-				dst->byte[0] = byte-val;
+				dst->byte[dst->offs] = byte-val;
 				dst->signum = 1;
 			}
 			else if(byte < val)
 			{
-				dst->byte[0] = val-byte;
+				dst->byte[dst->offs] = val-byte;
 				dst->signum = -1;
 			}
 		}
@@ -402,8 +447,7 @@ void BI_SubOneWord(BI* dst, BI* src, u32 val)
 	else if(op_sign == 0)
 	{
 		// src is 0
-		BI_Free(dst);
-		dst = BI_Create(val,-1);
+		BI_Set(dst,val,-1);
 	}
 	else if(op_sign == -1)
 	{
@@ -548,7 +592,114 @@ void BI_MultOneWord(BI* dst, BI* src, u32 val)
 	dst->len  = src->len+1 - dst->offs;
 }
 
-void BI_Mult(BI* dst, BI* src, BI* mpr);
+void BI_Mult(BI* dst, BI* src, BI* mpr)
+{
+
+}
+
+void BI_UMult(BI* dst, BI* src, BI* op)
+{
+	// byteA is the shorter byte array
+	// byteB is the longer byte array
+	BI* op1 = src, *op2 = op;
+	if(op1->len < op2->len)
+	{
+		op1 = op;
+		op2 = src;
+	}
+	size_t lenA = op1->len;
+	size_t lenB = op2->len;
+	u32* byteA = op1->byte;
+	u32* byteB = op2->byte;
+
+	// Temporary storage
+	// +1 to protect against the write of tmp[i+2] at i = n+m-2 FIXME
+	u32* tmp = malloc(sizeof(int)*(lenA+lenB+1));
+
+
+}
+
+void BImult(BI* dst, BI* op1, BI* op2)
+{
+	// byteA is the shorter byte
+	// byteB is the longer byte
+	size_t lenA = op1->b_len;
+	size_t lenB = op2->b_len;
+	u64* byteA = op1->bytes;
+	u64* byteB = op2->bytes;
+	if(lenA > lenB)
+	{
+		lenA = op2->b_len;
+		lenB = op1->b_len;
+		byteA = op2->bytes;
+		byteB = op1->bytes;
+	}
+
+	// Temporary storage
+	// +1 to protect against the write of tmp[i+2] at i = n+m-2
+	u64* tmp = malloc(sizeof(long)*(lenA+lenB)+1);
+
+	/* Let byteA be n u64's, byteB be m u64's.
+	 * number of bytes of result is n+m, in indexes that's {0,...,n+m-1}
+	 * byteA indexes {0,...,n-1}
+	 * byteB indexes {0,...,m-1}
+	 * each multiplication of u64 is 128 bits
+	 * so n+m-1 u64 is overflow of [n-1]*[m-1] multiplication, solely
+	 */
+	long max_i = lenA+lenB-2; // Iterate up to n+m-2
+	tmp[0] = 0; tmp[1] = 0; // Prepare for loop
+	/* To account for overflows properly, we calculate lbytes in sequence */
+	for(long i=0; i <= max_i; i++)
+	{
+
+		tmp[i+2] = 0; // Prepare for inner loop
+		/* These are lbytes of A and B that multiply into the current lbyte i */
+		for(long j=0; j < lenA && i-j >= 0; j++)
+		{
+			u64 ia = j;
+			u64 ib = i-j;
+
+			u64 mbuf[2];
+			// Buffer 128 bit result of multiplication
+			mult_64x64(byteA[ia],byteB[ib],&mbuf[0]);
+
+			u64 abuf[3];
+			// Buffer result of addition of byteA*byteB to tmp
+			add_2x64(mbuf[0],tmp[i],&abuf[0]);
+			tmp[i] = abuf[0];
+
+			add_3x64(mbuf[1],abuf[1],tmp[i+1],&abuf[1]);
+			tmp[i+1] = abuf[1];
+			// Assume that overflow of i+2 cell will not happen
+			// It would take ~ 2^64 additions/u64's
+			tmp[i+2] += abuf[2];
+		}
+	}
+
+	// Copy
+
+	// Assume that byteA and byteB are compact (every lbyte is nonzero)
+	if( tmp[lenA+lenB-1] )
+	{
+		if(dst->b_len != lenA+lenB)
+			BIrealloc(dst, lenA+lenB);
+
+		memcpy(dst->bytes, tmp, sizeof(long)*(lenA+lenB));
+	}
+	else
+	{
+		// Last lbyte was empty
+		if(dst->b_len != lenA+lenB-1)
+			BIrealloc(dst, lenA+lenB-1);
+
+		memcpy(dst->bytes, tmp, sizeof(long)*(lenA+lenB-1));
+	}
+
+	// Free
+	free(tmp);
+}
+
+
 void BI_Sqr(BI* dst, BI* src);
 
 u32 BI_DivOneWord(BI* dst, BI* src, u32 val)
