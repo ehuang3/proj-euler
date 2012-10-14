@@ -49,12 +49,12 @@ INCLUDES    += $(SOURCES) $(LIBRARY)
 ################################################################################
 # These are various settings for the GCC compiler
 #################################################################################
-CFLAGS   =
+CFLAGS   =  -std=c++0x
 CWARNING =  -Wall -Weffc++ -pedantic  \
-				-pedantic-errors -Wextra  -Wall -Waggregate-return -Wcast-align \
+				-pedantic-errors -Wextra  -Wall -Wcast-align \
 				-Wcast-qual  -Wchar-subscripts  -Wcomment -Wconversion \
 				-Wdisabled-optimization \
-				-Werror -Wfloat-equal  -Wformat  -Wformat=2 \
+				-Wfloat-equal  -Wformat  -Wformat=2 \
 				-Wformat-nonliteral -Wformat-security  \
 				-Wformat-y2k \
 				-Wimport  -Winit-self  -Winline \
@@ -73,11 +73,14 @@ CWARNING =  -Wall -Weffc++ -pedantic  \
 				-Wvolatile-register-var  -Wwrite-strings
 				#-Wimplicit
 				#-Wmissing-include-dirs
-CFLAGS  +=  $(CWARNING)
+				#-Waggregate-return
+				#-Werror
+#CFLAGS  +=  $(CWARNING)
 CFLAGS  +=  -MMD -MP
 CFLAGS  +=  $(addprefix -I $(CURDIR)/,$(INCLUDES))
-CDEBUG   =  -g 
-CRELEASE =  -O #-O2 
+CDEBUG   =  -g
+CLIBS    =  -lcppunit
+CRELEASE =  #-O #-O2 
 CC       =  g++ 
 
 ################################################################################
@@ -106,7 +109,7 @@ all : $(OFILES) lib.a $(BIN)
 
 $(BIN) : % : %.o lib.a
 	@echo "[BINARY] Linking $@ "
-	@$(CC) $< lib.a -o $@
+	@$(CC) $< lib.a -o $@ $(CLIBS)
 
 lib.a : lib.a($(LIB_O))
 
