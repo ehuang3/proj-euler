@@ -4,6 +4,7 @@ build/
 # temp
 *~
 *.sw*
+tags
 
 # eclipse
 .project
