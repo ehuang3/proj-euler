@@ -16,6 +16,8 @@ namespace Prime
 
    // GCD of a and b.
    long gcd(long a, long b);
+   // LCM of a and b.
+   long lcm(long a, long b);
    // Returns a^p mod m.
    long exp_mod(long a, long p, long m);
    // Returns the exponent of the factor d in a.

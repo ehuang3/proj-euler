@@ -15,6 +15,11 @@ long Prime::gcd(long a, long b)
    return labs(a);
 }
 
+long Prime::lcm(long a, long b)
+{
+   return (a*b)/gcd(a,b);
+}
+
 long Prime::exp_mod(long a, long p, long m)
 {
    long ans=1;
